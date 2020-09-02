@@ -86,11 +86,19 @@ addEmployee = () => {
             name: "firstName",
             type: "input",
             message: "What is the new employee's first name?",
+            validate: (input) => {
+                if (input === "") return false;
+                return true;
+            }
         },
         {
             name: "lastName",
             type: "input",
             message: "What is the new employee's last name?",
+            validate: (input) => {
+                if (input === "") return false;
+                return true;
+            }
         },
         {
             name: "role",
@@ -121,8 +129,36 @@ addEmployee = () => {
 };
 
 removeEmployee = () => {
-
-    init();
+    let employeeList = [];
+    connection.query("SELECT first_name, last_name FROM employee ORDER BY id ASC", (err, res) => {
+        if (err) throw err;
+        for (let i = 0; i < res.length; i++) {
+            employeeList.push(res[i].first_name + " " + res[i].last_name);
+        };
+        inquirer.prompt([
+            {
+                name: "employeeToRemove",
+                type: "list",
+                message: "Which employee would you like to remove?",
+                choices: employeeList
+            },
+            {
+                name: "yesOrNO",
+                type: "list",
+                message: "Are you sure you'd like to remove this employee?",
+                choices: ["Yes", "No"]
+            }
+        ]).then((response) => {
+            let answer = response.employeeToRemove;
+            if (response.yesOrNo === "Yes") {
+                connection.query("DELETE FROM employee WHERE first_name=?", answer, (err, res) => {
+                    if (err) throw err;
+                });
+            }
+            else
+                init();
+        });
+    });
 };
 
 updateEmployeeRole = () => {
