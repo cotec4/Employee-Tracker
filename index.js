@@ -1,12 +1,13 @@
 const inquirer = require("inquirer");
 const mysql = require("mysql");
+const cTable = require("console.table");
 
 const connection = mysql.createConnection({
     host: "localhost",
     port: 3306,
     user: "root",
     password: "root",
-    database: ""
+    database: "employee_tracker_db"
 });
 
 connection.connect((err) => {
@@ -31,8 +32,8 @@ init = () => {
                 "Exit"
             ]
         }
-    ]).then((answer) => {
-        let answer = answer.startingQuest;
+    ]).then((response) => {
+        let answer = response.startingQuestion;
         switch (answer) {
             case "View All Employees":
                 allEmployees();
@@ -57,17 +58,16 @@ init = () => {
                 break;
             case "Exit":
                 connection.end();
-        }
-    })
-}
-
+        };
+    });
+};
 
 allEmployees = () => {
     connection.query("SELECT * FROM employee", (err, results) => {
         if (err) throw err;
         console.table(results);
+        init();
     });
-    init();
 };
 
 byDepartment = () => {
@@ -81,8 +81,43 @@ byManager = () => {
 };
 
 addEmployee = () => {
+    inquirer.prompt([
+        {
+            name: "firstName",
+            type: "input",
+            message: "What is the new employee's first name?",
+        },
+        {
+            name: "lastName",
+            type: "input",
+            message: "What is the new employee's last name?",
+        },
+        {
+            name: "role",
+            type: "list",
+            message: "What is the new employee's role?",
+            choices: [
 
-    init();
+            ]
+        },
+        {
+            name: "manager",
+            type: "list",
+            message: "Who is the new employee's manager?",
+            choices: [
+
+            ]
+        }
+    ]).then((response) => {
+        let firstName = response.firstName;
+        let lastName = response.lastName;
+        let role = response.role;
+        let manager = response.manager;
+        connection.query("INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ?", [firstName, lastName, role, manager], (err, res) => {
+            if (err) throw err;
+        });
+        init();
+    });
 };
 
 removeEmployee = () => {
