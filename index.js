@@ -1,6 +1,8 @@
 const inquirer = require("inquirer");
 const mysql = require("mysql");
 const cTable = require("console.table");
+let roles = [];
+let managers = [];
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -81,60 +83,81 @@ byManager = () => {
 };
 
 addEmployee = () => {
-    inquirer.prompt([
-        {
-            name: "firstName",
-            type: "input",
-            message: "What is the new employee's first name?",
-            validate: (input) => {
-                if (input === "") return false;
-                return true;
-            }
-        },
-        {
-            name: "lastName",
-            type: "input",
-            message: "What is the new employee's last name?",
-            validate: (input) => {
-                if (input === "") return false;
-                return true;
-            }
-        },
-        {
-            name: "role",
-            type: "list",
-            message: "What is the new employee's role?",
-            choices: [
-
-            ]
-        },
-        {
-            name: "manager",
-            type: "list",
-            message: "Who is the new employee's manager?",
-            choices: [
-
-            ]
-        }
-    ]).then((response) => {
-        let firstName = response.firstName;
-        let lastName = response.lastName;
-        let role = response.role;
-        let manager = response.manager;
-        connection.query("INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ?", [firstName, lastName, role, manager], (err, res) => {
+    connection.query("SELECT * FROM employee WHERE manager_id IS NULL", (err, result) => {
+        if (err) throw err;
+        let managersArray = result;
+        for (let i = 0; i < result.length; i++)
+            managers.push(result[i].first_name + " " + result[i].last_name);
+        connection.query("SELECT * FROM role", (err, response) => {
             if (err) throw err;
+            let rolesArray = response;
+            for (let i = 0; i < response.length; i++)
+                roles.push(response[i].title);
+            inquirer.prompt([
+                {
+                    name: "firstName",
+                    type: "input",
+                    message: "What is the new employee's first name?",
+                    validate: (input) => {
+                        if (input === "") return false;
+                        return true;
+                    }
+                },
+                {
+                    name: "lastName",
+                    type: "input",
+                    message: "What is the new employee's last name?",
+                    validate: (input) => {
+                        if (input === "") return false;
+                        return true;
+                    }
+                },
+                {
+                    name: "role",
+                    type: "list",
+                    message: "What is the new employee's role?",
+                    choices: roles
+                },
+                {
+                    name: "manager",
+                    type: "list",
+                    message: "Who is the new employee's manager?",
+                    choices: managers
+                }
+            ]).then((response) => {
+                let firstName = response.firstName;
+                let lastName = response.lastName;
+                let roleID;
+                for (let i = 0; i < rolesArray.length; i++) {
+                    // console.log(rolesArray[i].id);
+                    // console.log(rolesArray[i].title);
+                    if (response.role === rolesArray[i].title) {
+                        roleID = rolesArray[i].id;
+                    };
+                };
+                let managerID;
+                for (let i = 0; i < managersArray.length; i++) {
+                    if (response.manager === managersArray[i].first_name + " " + managersArray[i].last_name)
+                        managerID = managersArray[i].id;
+                };
+                connection.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${firstName}", "${lastName}", ${roleID}, ${managerID})`, (err, res) => {
+                    if (err) throw err;
+                    console.log(`\n Employee ${firstName} ${lastName} added to the employee table \n`);
+                    init();
+                });
+            });
         });
-        init();
     });
 };
 
 removeEmployee = () => {
     let employeeList = [];
-    connection.query("SELECT first_name, last_name FROM employee ORDER BY id ASC", (err, res) => {
+    let employeeListArray;
+    connection.query("SELECT * FROM employee ORDER BY id ASC", (err, res) => {
         if (err) throw err;
-        for (let i = 0; i < res.length; i++) {
+        employeeListArray = res;
+        for (let i = 0; i < res.length; i++)
             employeeList.push(res[i].first_name + " " + res[i].last_name);
-        };
         inquirer.prompt([
             {
                 name: "employeeToRemove",
@@ -149,10 +172,16 @@ removeEmployee = () => {
                 choices: ["Yes", "No"]
             }
         ]).then((response) => {
-            let answer = response.employeeToRemove;
-            if (response.yesOrNo === "Yes") {
-                connection.query("DELETE FROM employee WHERE first_name=?", answer, (err, res) => {
+            let employeeToRemoveID;
+            for (let i = 0; i < employeeList.length; i++) {
+                if (response.employeeToRemove === employeeListArray[i].first_name + " " + employeeListArray[i].last_name)
+                    employeeToRemoveID = employeeListArray[i].id;
+            };
+            if (response.yesOrNO === "Yes") {
+                connection.query("DELETE FROM employee WHERE id=?", employeeToRemoveID, (err, res) => {
                     if (err) throw err;
+                    console.log(`\n Employee ${response.employeeToRemove} removed from the employee table \n`);
+                    init();
                 });
             }
             else
