@@ -3,6 +3,7 @@ const mysql = require("mysql");
 const cTable = require("console.table");
 let roles = [];
 let managers = [];
+let departments = [];
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -65,26 +66,80 @@ init = () => {
 };
 
 allEmployees = () => {
-    connection.query("SELECT * FROM employee", (err, results) => {
+    connection.query("SELECT * FROM employee", (err, result) => {
         if (err) throw err;
-        console.table(results);
+        console.table(result);
         init();
     });
 };
 
 byDepartment = () => {
-
-    init();
+    connection.query("SELECT * FROM department", (err, result) => {
+        if (err) throw err;
+        departments = [];
+        let departmentArray = result;
+        for (let i = 0; i < departmentArray.length; i++) {
+            departments.push(departmentArray[i].name);
+        };
+        inquirer.prompt([
+            {
+                name: "department",
+                type: "list",
+                message: "Of which department would you like to see all employees?",
+                choices: departments
+            }
+        ]).then((response) => {
+            let departmentID;
+            for (let i = 0; i < departmentArray.length; i++) {
+                if (response.department === departmentArray[i].name)
+                    departmentID = departmentArray[i].id;
+            };
+            connection.query("SELECT * FROM employee, role WHERE role.department_id = ? AND employee.role_id = role.id", departmentID, (err, result) => {
+                if (err) throw err;
+                for (let i = 0; i < result.length; i++)
+                    console.log(`${result[i].first_name} ${result[i].last_name}`);
+                console.log("\n");
+                init();
+            });
+        });
+    });
 };
 
 byManager = () => {
-
-    init();
+    connection.query("SELECT * FROM employee WHERE manager_id IS NULL", (err, result) => {
+        if (err) throw err;
+        managers = [];
+        let managersArray = result;
+        for (let i = 0; i < result.length; i++)
+            managers.push(result[i].first_name + " " + result[i].last_name);
+        inquirer.prompt([
+            {
+                name: "manager",
+                type: "list",
+                message: "Of which manager would you like to see all employees?",
+                choices: managers
+            }
+        ]).then((response) => {
+            let managerID;
+            for (let i = 0; i < managersArray.length; i++) {
+                if (response.manager === managersArray[i].first_name + " " + managersArray[i].last_name)
+                    managerID = managersArray[i].id;
+            };
+            connection.query("SELECT * FROM employee WHERE manager_id = ?", managerID, (err, result) => {
+                if (err) throw err;
+                for (let i = 0; i < result.length; i++)
+                    console.log(`${result[i].first_name} ${result[i].last_name}`);
+                console.log("\n");
+                init();
+            });
+        });
+    });
 };
 
 addEmployee = () => {
     connection.query("SELECT * FROM employee WHERE manager_id IS NULL", (err, result) => {
         if (err) throw err;
+        managers = [];
         let managersArray = result;
         for (let i = 0; i < result.length; i++)
             managers.push(result[i].first_name + " " + result[i].last_name);
@@ -129,8 +184,6 @@ addEmployee = () => {
                 let lastName = response.lastName;
                 let roleID;
                 for (let i = 0; i < rolesArray.length; i++) {
-                    // console.log(rolesArray[i].id);
-                    // console.log(rolesArray[i].title);
                     if (response.role === rolesArray[i].title) {
                         roleID = rolesArray[i].id;
                     };
