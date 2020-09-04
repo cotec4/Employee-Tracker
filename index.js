@@ -27,9 +27,13 @@ init = () => {
             message: "What would you like to do?",
             choices: [
                 "View All Employees",
+                "View All Roles",
+                "View All Departments",
                 "View All Employees By Department",
                 "View All Employees By Manager",
                 "Add Employee",
+                "Add Role",
+                "Add Department",
                 "Remove Employee",
                 "Update Employee Role",
                 "Update Employee Manager",
@@ -40,7 +44,13 @@ init = () => {
         let answer = response.startingQuestion;
         switch (answer) {
             case "View All Employees":
-                allEmployees();
+                viewTable("employee");
+                break;
+            case "View All Roles":
+                viewTable("role");
+                break;
+            case "View All Departments":
+                viewTable("department");
                 break;
             case "View All Employees By Department":
                 byDepartment();
@@ -50,6 +60,12 @@ init = () => {
                 break;
             case "Add Employee":
                 addEmployee();
+                break;
+            case "Add Role":
+                addRole();
+                break;
+            case "Add Department":
+                addDepartment();
                 break;
             case "Remove Employee":
                 removeEmployee();
@@ -66,22 +82,23 @@ init = () => {
     });
 };
 
-allEmployees = () => {
-    connection.query("SELECT * FROM employee", (err, result) => {
+viewTable = (tableName, isInit = true) => {
+    connection.query("SELECT * FROM ??", tableName, (err, result) => {
         if (err) throw err;
         console.table(result);
-        init();
+        if (isInit) return init();
+        return result
     });
 };
 
 byDepartment = () => {
+    departments = [];
     connection.query("SELECT * FROM department", (err, result) => {
         if (err) throw err;
-        departments = [];
         let departmentArray = result;
-        for (let i = 0; i < departmentArray.length; i++) {
-            departments.push(departmentArray[i].name);
-        };
+        departments = departmentArray.map((department) => {
+            return department.name
+        });
         inquirer.prompt([
             {
                 name: "department",
@@ -205,6 +222,68 @@ addEmployee = () => {
     });
 };
 
+addRole = () => {
+    connection.query("SELECT * FROM department", (err, result) => {
+        if (err) throw err;
+        departments = [];
+        let departmentArray = result;
+        departments = result.map((department) => {
+            return department.name
+        });
+        inquirer.prompt([
+            {
+                type: "input",
+                name: "newRole",
+                message: "What role do you want to add?"
+            },
+            {
+                type: "input",
+                name: "newRoleSalary",
+                message: "What is the salary for the new role?",
+                validate: (answer) => {
+                    const parseAnswer = parseInt(answer);
+                    if (isNaN(parseAnswer)) return false;
+                    else return true;
+                }
+            },
+            {
+                type: "list",
+                name: "newRoleDepartment",
+                message: "Which department is the new role in?",
+                choices: departments
+            },
+        ]).then((answer) => {
+            let departmentID;
+            departmentID = departmentArray.find((department) => {
+                return department.name === answer.newRoleDepartment;
+            });
+            connection.query(`INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)`, [answer.newRole, answer.newRoleSalary, departmentID.id], (err, result) => {
+                if (err) throw err;
+                console.log(`${answer.newRole} added`)
+                console.log("\n");
+                init();
+            })
+        });
+    });
+};
+
+addDepartment = () => {
+    inquirer.prompt([
+        {
+            message: "What department would you like to add?",
+            type: "input",
+            name: "newDepartment"
+        }
+    ]).then((answer) => {
+        connection.query("INSERT INTO department (name) VALUES (?)", answer.newDepartment, (err, result) => {
+            if (err) throw err;
+            console.log(`${answer.newDepartment} added as a department`);
+            console.log("\n");
+            init();
+        });
+    });
+};
+
 removeEmployee = () => {
     let employeeList = [];
     let employeeListArray;
@@ -298,7 +377,6 @@ updateEmployeeRole = () => {
     });
 };
 
-
 updateEmployeeManager = () => {
     employees = [];
     roles = [];
@@ -316,11 +394,9 @@ updateEmployeeManager = () => {
             }
         ]).then((answer) => {
             let employeeID;
-            let employee = answer.employee;
-            let index = employees.indexOf(employee);
-            if (index > -1) {
-                employees.splice(index, 1);
-            }
+            employees = employees.filter((employee) => {
+                return answer.employee !== employee
+            });
             for (let i = 0; i < employeesArray.length; i++) {
                 if (answer.employee === employeesArray[i].first_name + " " + employeesArray[i].last_name)
                     employeeID = employeesArray[i].id;
@@ -329,7 +405,7 @@ updateEmployeeManager = () => {
                 {
                     type: "list",
                     name: "newManager",
-                    message: `Who would you like to be ${employee}'s new manager to be?`,
+                    message: `Who would you like to be ${answer.employee}'s new manager to be?`,
                     choices: employees
                 }
             ]).then((response) => {
