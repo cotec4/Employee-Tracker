@@ -4,6 +4,7 @@ const cTable = require("console.table");
 let roles = [];
 let managers = [];
 let departments = [];
+let employees = [];
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -140,6 +141,7 @@ addEmployee = () => {
     connection.query("SELECT * FROM employee WHERE manager_id IS NULL", (err, result) => {
         if (err) throw err;
         managers = [];
+        roles = [];
         let managersArray = result;
         for (let i = 0; i < result.length; i++)
             managers.push(result[i].first_name + " " + result[i].last_name);
@@ -244,11 +246,106 @@ removeEmployee = () => {
 };
 
 updateEmployeeRole = () => {
-
-    init();
+    employees = [];
+    roles = [];
+    connection.query("SELECT * FROM employee", (err, result) => {
+        let employeesArray = result;
+        if (err) throw err;
+        for (let i = 0; i < result.length; i++)
+            employees.push(result[i].first_name + " " + result[i].last_name);
+        inquirer.prompt([
+            {
+                type: "list",
+                name: "employee",
+                message: "Which employee's role would you like to update?",
+                choices: employees
+            }
+        ]).then((answer) => {
+            let employeeID;
+            let employee = answer.employee;
+            for (let i = 0; i < employeesArray.length; i++) {
+                if (answer.employee === employeesArray[i].first_name + " " + employeesArray[i].last_name)
+                    employeeID = employeesArray[i].id;
+            }
+            connection.query("SELECT * FROM role", (err, response) => {
+                let rolesArray = response;
+                if (err) throw err;
+                for (let i = 0; i < rolesArray.length; i++)
+                    roles.push(rolesArray[i].title);
+                inquirer.prompt([
+                    {
+                        type: "list",
+                        name: "newRole",
+                        message: `What would you like ${employee}'s new role to be?`,
+                        choices: roles
+                    }
+                ]).then((response) => {
+                    let roleID;
+                    let role = response.newRole;
+                    for (let i = 0; i < rolesArray.length; i++) {
+                        if (response.newRole === rolesArray[i].title)
+                            roleID = rolesArray[i].id;
+                    };
+                    connection.query("UPDATE employee SET role_id = ? WHERE ID = ?", [roleID, employeeID], (err, answer) => {
+                        if (err) throw err;
+                        console.log(`${employee}'s role has been updated to ${role}`);
+                        console.log("\n");
+                        init();
+                    });
+                });
+            });
+        });
+    });
 };
 
-updateEmployeeManager = () => {
 
-    init();
+updateEmployeeManager = () => {
+    employees = [];
+    roles = [];
+    connection.query("SELECT * FROM employee", (err, result) => {
+        let employeesArray = result;
+        if (err) throw err;
+        for (let i = 0; i < result.length; i++)
+            employees.push(result[i].first_name + " " + result[i].last_name);
+        inquirer.prompt([
+            {
+                type: "list",
+                name: "employee",
+                message: "Which employee's manager would you like to update?",
+                choices: employees
+            }
+        ]).then((answer) => {
+            let employeeID;
+            let employee = answer.employee;
+            let index = employees.indexOf(employee);
+            if (index > -1) {
+                employees.splice(index, 1);
+            }
+            for (let i = 0; i < employeesArray.length; i++) {
+                if (answer.employee === employeesArray[i].first_name + " " + employeesArray[i].last_name)
+                    employeeID = employeesArray[i].id;
+            }
+            inquirer.prompt([
+                {
+                    type: "list",
+                    name: "newManager",
+                    message: `Who would you like to be ${employee}'s new manager to be?`,
+                    choices: employees
+                }
+            ]).then((response) => {
+                let newManagerID;
+                let newManager = response.newManager;
+                for (let i = 0; i < employeesArray.length; i++) {
+                    if (response.newManager === employeesArray[i].first_name + " " + employeesArray[i].last_name)
+                        newManagerID = employeesArray[i].id;
+                };
+                connection.query("UPDATE employee SET manager_id = ? WHERE ID = ?", [newManagerID, employeeID], (err, answer) => {
+                    if (err) throw err;
+                    console.log(`${employee}'s manager has been updated to ${newManager}`);
+                    console.log("\n");
+                    init();
+                });
+            });
+        });
+    });
 };
