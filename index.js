@@ -417,7 +417,7 @@ updateEmployeeManager = () => {
                 };
                 connection.query("UPDATE employee SET manager_id = ? WHERE ID = ?", [newManagerID, employeeID], (err, answer) => {
                     if (err) throw err;
-                    console.log(`${employee}'s manager has been updated to ${newManager}`);
+                    console.log(`${answer.employee}'s manager has been updated to ${newManager}`);
                     console.log("\n");
                     init();
                 });
